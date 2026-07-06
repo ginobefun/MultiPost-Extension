@@ -30,7 +30,7 @@ async function isOriginTrusted(origin: string, action: string): Promise<boolean>
   return trustedDomains.some(({ domain }) => {
     if (domain.startsWith("*.")) {
       const wildCardDomain = domain.slice(2);
-      return origin.endsWith(wildCardDomain);
+      return origin === wildCardDomain || origin.endsWith(`.${wildCardDomain}`);
     }
     return origin === domain;
   });

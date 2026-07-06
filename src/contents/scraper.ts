@@ -8,7 +8,11 @@ export const config: PlasmoCSConfig = {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "MULTIPOST_EXTENSION_REQUEST_SCRAPER_START") {
+    let didRespond = false;
     const scrapeFunc = async () => {
+      if (didRespond) return;
+      didRespond = true;
+      window.removeEventListener("scroll", checkScrollEnd);
       const articleData = await scrapeContent();
       await new Promise((resolve) => setTimeout(resolve, 1000));
       sendResponse(articleData);
@@ -22,7 +26,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // 监听滚动完成事件
     const checkScrollEnd = () => {
       if (window.innerHeight + window.pageYOffset >= document.body.offsetHeight - 2) {
-        // 滚动完成，发送响应
         scrapeFunc();
       }
     };

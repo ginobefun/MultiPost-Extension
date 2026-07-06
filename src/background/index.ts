@@ -1,4 +1,10 @@
 import { Storage } from "@plasmohq/storage";
+import {
+  BESTBLOGS_ON_INSTALL_URL,
+  BESTBLOGS_SUBMIT_ENDPOINT,
+  BESTBLOGS_TRUSTED_DOMAINS,
+  LOCAL_DEV_TRUSTED_DOMAINS,
+} from "~bestblogs/config";
 import { getAllAccountInfo } from "~sync/account";
 import {
   // injectScriptsToTabs,
@@ -21,25 +27,101 @@ const storage = new Storage({
   area: "local",
 });
 
+interface ScrapedArticleData {
+  title: string;
+  author: string;
+  cover: string;
+  content: string;
+  digest: string;
+}
+
+const DEFAULT_TRUSTED_DOMAINS = ["multipost.app", ...BESTBLOGS_TRUSTED_DOMAINS, ...LOCAL_DEV_TRUSTED_DOMAINS];
+
 async function initDefaultTrustedDomains() {
   const trustedDomains = await storage.get<Array<{ id: string; domain: string }>>("trustedDomains");
-  if (!trustedDomains) {
-    await storage.set("trustedDomains", [
-      {
-        id: crypto.randomUUID(),
-        domain: "multipost.app",
-      },
-    ]);
+  const existingTrustedDomains = trustedDomains || [];
+  const existingDomainSet = new Set(existingTrustedDomains.map(({ domain }) => domain));
+  const missingTrustedDomains = DEFAULT_TRUSTED_DOMAINS.filter((domain) => !existingDomainSet.has(domain)).map(
+    (domain) => ({
+      id: crypto.randomUUID(),
+      domain,
+    }),
+  );
+
+  if (missingTrustedDomains.length > 0) {
+    await storage.set("trustedDomains", [...existingTrustedDomains, ...missingTrustedDomains]);
   }
 }
 
 chrome.runtime.onInstalled.addListener((object) => {
   if (object.reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    chrome.tabs.create({ url: "https://multipost.app/on-install" });
+    chrome.tabs.create({ url: BESTBLOGS_ON_INSTALL_URL });
   }
   initDefaultTrustedDomains();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 });
+
+async function parseBestBlogsSubmitResponse(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
+}
+
+async function submitCurrentPageToBestBlogs() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.id) {
+    throw new Error("No active tab found");
+  }
+  if (!tab.url?.startsWith("http://") && !tab.url?.startsWith("https://")) {
+    throw new Error("Current page cannot be submitted");
+  }
+
+  const article = (await chrome.tabs.sendMessage(tab.id, {
+    type: "MULTIPOST_EXTENSION_REQUEST_SCRAPER_START",
+  })) as ScrapedArticleData | undefined;
+
+  if (!article?.title || !article.content) {
+    throw new Error("Failed to scrape article content");
+  }
+
+  const endpoint = (await storage.get<string>("bestblogsSubmitEndpoint")) || BESTBLOGS_SUBMIT_ENDPOINT;
+  const payload = {
+    ...article,
+    sourceUrl: tab.url,
+    sourceTitle: tab.title || article.title,
+    submittedVia: "multipost-extension",
+    extensionVersion: chrome.runtime.getManifest().version,
+    scrapedAt: new Date().toISOString(),
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const responseBody = await parseBestBlogsSubmitResponse(response);
+
+  if (!response.ok) {
+    const message =
+      typeof responseBody === "object" && responseBody && "message" in responseBody
+        ? String(responseBody.message)
+        : response.statusText;
+    throw new Error(`BestBlogs submit failed (${response.status}): ${message}`);
+  }
+
+  return {
+    ok: true,
+    endpoint,
+    articleTitle: article.title,
+    sourceUrl: tab.url,
+    response: responseBody,
+  };
+}
 
 // Listen Message || 监听消息 || START
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -103,6 +185,19 @@ const defaultMessageHandler = (request, _sender, sendResponse) => {
   if (request.action === "MULTIPOST_EXTENSION_OPEN_OPTIONS") {
     chrome.runtime.openOptionsPage();
     sendResponse({ extensionId: chrome.runtime.id });
+    return true;
+  }
+  if (request.action === "MULTIPOST_EXTENSION_BESTBLOGS_SUBMIT_CURRENT_PAGE") {
+    (async () => {
+      try {
+        sendResponse(await submitCurrentPageToBestBlogs());
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error: String(error instanceof Error ? error.message : error),
+        });
+      }
+    })();
     return true;
   }
   if (request.action === "MULTIPOST_EXTENSION_REFRESH_ACCOUNT_INFOS") {

@@ -55,6 +55,30 @@
     "message": "未设置昵称",
     "description": "默认昵称文本"
   },
+  "bestblogsPopupTitle": {
+    "message": "BestBlogs MultiPost",
+    "description": "BestBlogs 定制版弹窗标题"
+  },
+  "bestblogsOpenPublish": {
+    "message": "打开发布台",
+    "description": "打开 BestBlogs 发布台按钮文本"
+  },
+  "bestblogsSubmitCurrentPage": {
+    "message": "收录当前页",
+    "description": "提交当前页面到 BestBlogs 按钮文本"
+  },
+  "bestblogsSubmitting": {
+    "message": "正在收录...",
+    "description": "提交当前页面到 BestBlogs 的进行中状态"
+  },
+  "bestblogsSubmitSuccess": {
+    "message": "已提交到 BestBlogs",
+    "description": "提交当前页面到 BestBlogs 的成功状态"
+  },
+  "bestblogsSubmitError": {
+    "message": "收录失败",
+    "description": "提交当前页面到 BestBlogs 的失败状态"
+  },
   "optionsTitle": {
     "message": "Multipost",
     "description": "选项页面标题"

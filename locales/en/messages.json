@@ -55,6 +55,30 @@
     "message": "No Nickname Set",
     "description": "Default nickname text"
   },
+  "bestblogsPopupTitle": {
+    "message": "BestBlogs MultiPost",
+    "description": "BestBlogs custom popup title"
+  },
+  "bestblogsOpenPublish": {
+    "message": "Open Publisher",
+    "description": "Open BestBlogs publisher button text"
+  },
+  "bestblogsSubmitCurrentPage": {
+    "message": "Submit Current Page",
+    "description": "Submit current page to BestBlogs button text"
+  },
+  "bestblogsSubmitting": {
+    "message": "Submitting...",
+    "description": "Submitting current page to BestBlogs status text"
+  },
+  "bestblogsSubmitSuccess": {
+    "message": "Submitted to BestBlogs",
+    "description": "Submit current page to BestBlogs success status"
+  },
+  "bestblogsSubmitError": {
+    "message": "Submit failed",
+    "description": "Submit current page to BestBlogs failure status"
+  },
   "optionsTitle": {
     "message": "Multipost",
     "description": "Options page title"
